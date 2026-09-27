@@ -45,6 +45,7 @@ def set_sudo_pwd(pwd: Optional[str]):
 
 class ApplyThread(QThread):
     progress = Signal(str)
+    numeric_progress = Signal(float)
     alert = Signal(object)  # ApplyAlertMessage or None for sudo prompt
     finished_with_result = Signal(bool, str)  # success, error_message
     request_text = Signal(str, str, object)  # title, label, result box (main-thread prompt)
@@ -138,10 +139,12 @@ class ApplyThread(QThread):
     def _do_work(self):
         if self.reset_pages is None:
             self.manager.apply_changes(self.update_label, self.alert_window,
-                                       self.prompt_password, self.prompt_user_choice)
+                                       self.prompt_password, self.prompt_user_choice,
+                                       update_progress=self.numeric_progress.emit)
         else:
             self.manager.reset_tweaks(self.reset_pages, self.settings, self.update_label,
-                                      self.alert_window, self.prompt_user_choice)
+                                      self.alert_window, self.prompt_user_choice,
+                                      update_progress=self.numeric_progress.emit)
 
 
 class RestoreCacheThread(QThread):

@@ -504,6 +504,14 @@ All device communication uses async/await with pymobiledevice3:
 
 ## Progress Reporting
 
+Apply/reset numeric progress uses `DeviceManager._report_progress` →
+`ApplyThread.numeric_progress` → `IOSApplyPage.set_progress`. The callback is
+cleared when the operation finishes, including failures. Status messages stay
+on the separate text signal: AFC's local percentage must never drive the bar.
+`set_status` only changes the label; `set_busy` resets the bar at operation
+boundaries. Backup percentages still describe their own backup stage, not an
+estimate of elapsed time across the entire apply operation.
+
 Progress callbacks pass through the call chain:
 ```
 update_label (UI)

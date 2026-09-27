@@ -795,6 +795,7 @@ class ApplyMixin:
             self.toggle_thread_btns(disabled=True)
             self.worker_thread = ApplyThread(manager=self.device_manager, settings=self.settings, reset_pages=reset_pages)
             self.worker_thread.progress.connect(self.update_label)
+            self.worker_thread.numeric_progress.connect(self.ios_apply.set_progress)
             self.worker_thread.alert.connect(self.alert_message)
             self.worker_thread.request_text.connect(self.on_password_request)
             self.worker_thread.choice_prompt.connect(self.on_choice_prompt)

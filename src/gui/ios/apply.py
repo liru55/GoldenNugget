@@ -1,8 +1,8 @@
-from PySide6.QtCore import Qt, QCoreApplication
+from PySide6.QtCore import Qt, QCoreApplication, Slot
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QProgressBar
 )
-import re
+import math
 
 from src.gui.ios.components import (
     IOSSectionHeader, IOSCard, IOSPrimaryButton, IOSDangerButton)
@@ -110,15 +110,21 @@ class IOSApplyPage(QWidget):
 
     def set_status(self, text: str):
         self.status_lbl.setText(text or "")
-        match = re.search(r"(\d+(?:\.\d+)?)\s*%", text or "")
-        if match:
-            self.progress_bar.setValue(
-                max(0, min(100, int(round(float(match.group(1)))))))
-            self.progress_bar.show()
-        else:
-            self.progress_bar.hide()
+
+    @Slot(float)
+    def set_progress(self, value: float):
+        # Status text can contain AFC's own percentage. Only the separate
+        # numeric signal belongs to this bar; never parse translated labels.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return
+        if not math.isfinite(value):
+            return
+        self.progress_bar.setValue(max(0, min(100, round(value))))
+        self.progress_bar.show()
 
     def set_busy(self, busy: bool):
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
         self.apply_btn.setEnabled(not busy)
         self.remove_btn.setEnabled(not busy)
 

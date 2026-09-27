@@ -1,4 +1,5 @@
 import asyncio
+import math
 import os.path
 import plistlib
 import shutil
@@ -113,6 +114,7 @@ class DeviceManager:
         self.devices: list[Device] = []
         self.data_singleton = DataSingleton()
         self.current_device_index = 0
+        self._update_progress = None
 
         # preferences
         self.pref_manager = PreferenceManager(None)
@@ -436,8 +438,23 @@ class DeviceManager:
             return
         prog = ""
         if progress != None:
+            progress = self._report_progress(progress)
+            if progress is None:
+                return
             prog = f" ({progress:6.1f}% )"
         self.update_label(QCoreApplication.tr("Restoring to device...{0}{1}").format(prog, self.do_not_unplug))
+
+    def _report_progress(self, value):
+        """Only numeric backend events may update the GUI progress bar."""
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(value):
+            return None
+        value = max(0.0, min(100.0, value))
+        if self._update_progress is not None:
+            self._update_progress(value)
+        return value
+
     def _backup_progress(self, update_label):
         """Progress callback for backup-driven captures (psysbackup).
 
@@ -450,12 +467,19 @@ class DeviceManager:
             if isinstance(progress, str):
                 update_label(progress)
                 return
-            if isinstance(progress, bool) or not isinstance(progress, (int, float)):
+            progress = self._report_progress(progress)
+            if progress is None:
                 return
             update_label(QCoreApplication.tr("Backing up device... ({0:.1f}%)").format(progress))
         return _cb
-    def apply_changes(self, update_label=lambda x: None, show_alert=lambda x: None, prompt_password=None, prompt_choice=None):
-        asyncio.run(self._apply_changes(update_label, show_alert, prompt_password, prompt_choice))
+    def apply_changes(self, update_label=lambda x: None, show_alert=lambda x: None, prompt_password=None, prompt_choice=None, update_progress=None):
+        # Scope the GUI callback to this operation; later cache refreshes must
+        # not emit into a finished/deleted ApplyThread.
+        self._update_progress = update_progress
+        try:
+            asyncio.run(self._apply_changes(update_label, show_alert, prompt_password, prompt_choice))
+        finally:
+            self._update_progress = None
     async def _apply_changes(self, update_label=lambda x: None, show_alert=lambda x: None, prompt_password=None, prompt_choice=None):
         files_to_restore: list[FileToRestore] = []
         final_alert = None
@@ -1101,8 +1125,12 @@ Returns (PreparedBackup, posterboard_db_ok). When the PosterBoard
                         print(str(e))
 
     ## RESETTING TWEAKS
-    def reset_tweaks(self, reset_pages: list[Page], settings: QSettings, update_label=lambda x: None, show_alert=lambda x: None, prompt_choice=None):
-        asyncio.run(self._reset_tweaks(reset_pages, settings, update_label, show_alert, prompt_choice))
+    def reset_tweaks(self, reset_pages: list[Page], settings: QSettings, update_label=lambda x: None, show_alert=lambda x: None, prompt_choice=None, update_progress=None):
+        self._update_progress = update_progress
+        try:
+            asyncio.run(self._reset_tweaks(reset_pages, settings, update_label, show_alert, prompt_choice))
+        finally:
+            self._update_progress = None
     async def _reset_tweaks(self, reset_pages: list[Page], settings: QSettings, update_label=lambda x: None, show_alert=lambda x: None, prompt_choice=None):
         try:
             self._raise_if_unsupported()
