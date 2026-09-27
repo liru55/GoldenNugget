@@ -645,8 +645,10 @@ async def _restore_ios27(back: backup.Backup, reboot: bool,
                 sparse_progress["calls"] += 1
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     sparse_progress["last"] = value
-                progress_callback(_scaled_callback(
-                    progress_callback, _PHASE_BACKUP_END, _PHASE_TWEAK_END)(value))
+                # The scaled callback delivers the event itself; its return
+                # value is None and must not overwrite the progress/status.
+                _scaled_callback(
+                    progress_callback, _PHASE_BACKUP_END, _PHASE_TWEAK_END)(value)
 
             # The cache session finishes right before Phase 2 starts; on some
             # devices backupd needs a moment before accepting another mobilebackup2
